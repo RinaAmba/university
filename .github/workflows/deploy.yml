@@ -1,0 +1,34 @@
+name: Deploy to VK Cloud VM
+
+# Пайплайн запускается автоматически при каждом push в ветку main
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Скачиваем код из репозитория на виртуальный раннер GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Автоматически подключаемся по SSH к VK Cloud и выполняем команды деплоя
+      - name: Executing remote ssh commands using ssh key
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          # Отключаем строгую проверку хоста, так как у ВМ динамический периметр
+          disable_host_key_checking: true
+          script: |
+            echo "--- Начало автоматического деплоя ---"
+            cd ~
+            # Фиксируем дату и время успешного прогона пайплайна в лог-файл на сервере
+            echo "Пайплайн успешно отработал. Дата: \$(date)" >> deploy.log
+            echo "Последние 3 строки лога деплоя:"
+            tail -n 3 deploy.log
+            echo "--- Деплой успешно завершен! ---"
