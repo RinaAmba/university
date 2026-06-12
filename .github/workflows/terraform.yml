@@ -1,0 +1,84 @@
+name: Terraform CI/CD Cloud Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  # Передаем переменные авторизации VK Cloud из GitHub Secrets
+  VKCS_USERNAME: ${{ secrets.VKCS_USERNAME }}
+  VKCS_PASSWORD: ${{ secrets.VKCS_PASSWORD }}
+  VKCS_PROJECT_ID: ${{ secrets.VKCS_PROJECT_ID }}
+  VKCS_REGION: "ru-msk"
+
+jobs:
+  terraform_validate:
+    name: 1. Validate Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.5
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+  terraform_plan:
+    name: 2. Infrastructure Plan
+    needs: terraform_validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Save Plan Artifact
+        uses: actions/artifacts@v4
+        with:
+          name: tfplan
+          path: tfplan
+
+  terraform_apply:
+    name: 3. Deploy Infrastructure (Manual)
+    needs: terraform_plan
+    runs-on: ubuntu-latest
+    # Запускаем деплой только при пуше в main ветку
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production # Активирует кнопку ручного апрува в веб-интерфейсе GitHub
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
