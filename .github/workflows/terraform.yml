@@ -9,7 +9,6 @@ on:
       - main
 
 env:
-  # Передаем переменные авторизации VK Cloud из GitHub Secrets
   VKCS_USERNAME: ${{ secrets.VKCS_USERNAME }}
   VKCS_PASSWORD: ${{ secrets.VKCS_PASSWORD }}
   VKCS_PROJECT_ID: ${{ secrets.VKCS_PROJECT_ID }}
@@ -51,8 +50,9 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
+      # ИСПРАВЛЕНО: Изменено имя экшена с actions/artifacts на actions/upload-artifact
       - name: Save Plan Artifact
-        uses: actions/artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
           name: tfplan
           path: tfplan
@@ -61,10 +61,9 @@ jobs:
     name: 3. Deploy Infrastructure (Manual)
     needs: terraform_plan
     runs-on: ubuntu-latest
-    # Запускаем деплой только при пуше в main ветку
     if: github.ref == 'refs/heads/main'
     environment:
-      name: production # Активирует кнопку ручного апрува в веб-интерфейсе GitHub
+      name: production
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
